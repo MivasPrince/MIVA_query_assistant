@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIVA Query Assistant - BigQuery Integration</title>
+  <style>
+    :root {
+      --miva-primary: #1e3a8a;
+      --miva-secondary: #3b82f6;
+      --miva-accent: #f59e0b;
+      --miva-light: #f8fafc;
+      --miva-dark: #1e293b;
+      --miva-success: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--miva-primary), var(--miva-secondary));
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--miva-primary), var(--miva-secondary));
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    .main-content {
+      padding: 2rem;
+    }
+
+    .query-section {
+      background: linear-gradient(135deg, var(--miva-light), #e2e8f0);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(59, 130, 246, 0.1);
+    }
+
+    .query-label {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--miva-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .query-input {
+      width: 100%;
+      padding: 1.5rem;
+      border: 2px solid var(--miva-secondary);
+      border-radius: 10px;
+      font-size: 1.1rem;
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+    }
+
+    .query-input:focus {
+      outline: none;
+      border-color: var(--miva-accent);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    }
+    
+    .query-examples {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .example-chip {
+      background: white;
+      border: 1px solid var(--miva-secondary);
+      color: var(--miva-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    
+    .example-chip:hover {
+      background: var(--miva-secondary);
+      color: white;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--miva-primary), var(--miva-secondary));
+      color: white;
+      border: none;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--miva-primary);
+      border: 2px solid var(--miva-secondary);
+    }
+    
+    .results-section {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      margin-top: 2rem;
+      border: 1px solid #e2e8f0;
+      display: none;
+    }
+
+    .results-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--miva-primary);
+    }
+
+    .results-meta {
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    
+    .sql-preview {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.9rem;
+      color: #374151;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .data-table th {
+      background: linear-gradient(135deg, var(--miva-primary), var(--miva-secondary));
+      color: white;
+      padding: 1rem;
+      text-align: left;
+    }
+
+    .data-table td {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .export-options {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .export-btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    
+    .export-csv {
+      background: var(--miva-success);
+      color: white;
+    }
+    
+    .export-excel {
+      background: var(--miva-accent);
+      color: white;
+    }
+    
+    .loading, .error {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+      color: var(--miva-secondary);
+      border-radius: 15px;
+      margin-top: 2rem;
+    }
+    
+    .error {
+        color: #c53030;
+        background: #fed7d7;
+    }
+
+    .spinner {
+      border: 4px solid #f3f4f6;
+      border-top: 4px solid var(--miva-secondary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-content">
+        <div class="logo">🎓 MIVA Query Assistant</div>
+        <div class="subtitle">BigQuery Intelligence Assistant</div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="query-section">
+        <div class="query-label">
+          Ask a question about your data
+        </div>
+        <textarea class="query-input" id="queryInput" placeholder="Example: Show me the enrollment trends for Computer Science students over the last 3 years..."></textarea>
+        <div class="query-examples">
+           <div class="example-chip" onclick="setExample('Show me student enrollment by program for the current academic year')">📊 Enrollment by Program</div>
+           <div class="example-chip" onclick="setExample('What are the top 5 courses with highest completion rates?')">📚 Course Performance</div>
+           <div class="example-chip" onclick="setExample('List all students who failed more than 2 courses in the last semester')">⚠️ At-Risk Students</div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" onclick="executeQuery()">🔍 Analyze Data</button>
+        <button class="btn btn-secondary" onclick="clearQuery()">🗑️ Clear Query</button>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Contacting AI Assistant, please wait...</p>
+      </div>
+
+      <div class="error" id="error"></div>
+      
+      <div class="results-section" id="results">
+        <div class="results-title">Query Results</div>
+        <div class="results-meta" id="resultsMeta"></div>
+        <div class="sql-preview"><strong>Generated SQL:</strong><br><code id="sqlCode"></code></div>
+        <div class="table-container">
+          <table class="data-table" id="dataTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="export-options" id="exportOptions">
+           <button class="export-btn export-csv" onclick="exportData('csv')">📄 Export as CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- START: Configuration & Global Variables ---
+    const API_BASE_URL = "https://miva-query-backend-725755195640.us-central1.run.app";
+    let fullData = []; // To store the latest results for export
+    // --- END: Configuration & Global Variables ---
+
+    function setExample(text) {
+      document.getElementById('queryInput').value = text;
+    }
+
+    function clearQuery() {
+      document.getElementById('queryInput').value = '';
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('error').style.display = 'none';
+    }
+
+    // --- START: API Integration Logic (This is the updated part) ---
+    async function executeQuery() {
+        const query = document.getElementById('queryInput').value.trim();
+        if (!query) {
+            alert('Please enter a query first.');
+            return;
+        }
+
+        // 1. Setup UI for loading state
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('error').style.display = 'none';
+
+        const startTime = Date.now();
+
+        try {
+            // 2. Call the real backend API
+            const response = await fetch(`${API_BASE_URL}/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ natural_language_query: query }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Handle errors from the backend (e.g., bad query)
+                throw new Error(data.detail || `HTTP error! Status: ${response.status}`);
+            }
+            
+            // 3. Process and display the successful response
+            fullData = data.results || []; // Store data for export
+            document.getElementById('sqlCode').textContent = data.sql_query || 'SQL query not provided.';
+            
+            const endTime = Date.now();
+            const duration = ((endTime - startTime) / 1000).toFixed(2);
+            document.getElementById('resultsMeta').textContent = `Retrieved ${fullData.length} records in ${duration}s`;
+            
+            populateTable(fullData);
+            document.getElementById('results').style.display = 'block';
+
+        } catch (err) {
+            // 4. Display any errors to the user
+            document.getElementById('error').textContent = `Error: ${err.message}`;
+            document.getElementById('error').style.display = 'block';
+        } finally {
+            // 5. Always hide the loader when done
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+    // --- END: API Integration Logic ---
+
+    function populateTable(data) {
+        const tableHead = document.getElementById('tableHead');
+        const tableBody = document.getElementById('tableBody');
+        const exportDiv = document.getElementById('exportOptions');
+
+        // Clear previous results
+        tableHead.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            tableHead.innerHTML = '<tr><th>Result</th></tr>';
+            tableBody.innerHTML = '<tr><td>No data returned.</td></tr>';
+            exportDiv.style.display = 'none';
+            return;
+        }
+        
+        exportDiv.style.display = 'flex';
+        const headers = Object.keys(data[0]);
+        const headerRow = document.createElement('tr');
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            headerRow.appendChild(th);
+        });
+        tableHead.appendChild(headerRow);
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            headers.forEach(header => {
+                const td = document.createElement('td');
+                td.textContent = row[header];
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+    }
+
+    function exportData(format) {
+        if (format === 'csv') {
+            const csvData = convertToCSV(fullData);
+            downloadFile(csvData, 'miva_query_results.csv', 'text/csv;charset=utf-8;');
+        } else {
+            alert('Excel export is not yet implemented.');
+        }
+    }
+
+    function convertToCSV(data) {
+        if (!data || data.length === 0) return '';
+        const headers = Object.keys(data[0]);
+        const replacer = (key, value) => value === null ? '' : value;
+        const csvRows = [
+            headers.join(','),
+            ...data.map(row => headers.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
+        ].join('\r\n');
+        return csvRows;
+    }
+
+    function downloadFile(content, filename, type) {
+        const blob = new Blob([content], { type });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+  </script>
+</body>
+</html>
